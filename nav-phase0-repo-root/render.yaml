@@ -1,0 +1,88 @@
+# Render Blueprint for N.A.V. (prototype).
+#
+# Render looks for ./Dockerfile at the repository root by default. This is a
+# monorepo with one Dockerfile per service, so each service states its own
+# dockerfilePath and dockerContext.
+#
+# Three resources, all on free plans: API, console, Postgres. No secret to
+# generate, no cache, no worker - nothing in the prototype needs them.
+#
+# Deploy: Render Dashboard -> New -> Blueprint -> pick this repo.
+
+services:
+  # --- API ------------------------------------------------------------------
+  - type: web
+    name: nav-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - apps/api/**
+        - render.yaml
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      # Render injects PORT; the image's CMD reads it.
+      # Supplied as postgresql://; Settings rewrites it for asyncpg.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nav-postgres
+          property: connectionString
+      # REDIS_URL is deliberately unset: readiness reports redis as
+      # NOT_CONFIGURED, which does not block the service.
+      - key: LLM_PROVIDER
+        value: mock
+      - key: WEATHER_PROVIDER
+        value: mock
+      - key: ROUTING_PROVIDER
+        value: mock
+
+  # --- Console --------------------------------------------------------------
+  - type: web
+    name: nav-web
+    runtime: docker
+    plan: free
+    region: singapore
+    # Context is the repository root: the build needs the npm workspace.
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - apps/web/**
+        - packages/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    envVars:
+      # The only value you supply. Render cannot compose a URL from another
+      # service's hostname, so paste the API's URL after the first deploy:
+      # https://nav-api.onrender.com
+      - key: API_INTERNAL_URL
+        sync: false
+
+  # --- Cache / broker -------------------------------------------------------
+  # Not needed until Phase 4 queues optimisation runs. Uncomment then, and add
+  # REDIS_URL to nav-api. Note that Render has no free plan for background
+  # workers, so the Celery service is a paid instance when it arrives.
+  #
+  # - type: keyvalue
+  #   name: nav-keyvalue
+  #   plan: free
+  #   region: singapore
+  #   maxmemoryPolicy: noeviction
+  #   ipAllowList: []          # private network only
+
+databases:
+  - name: nav-postgres
+    plan: free
+    region: singapore
+    databaseName: nav
+    postgresMajorVersion: "16"
