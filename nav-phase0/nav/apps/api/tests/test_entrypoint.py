@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import pytest
 
-from app.cli.entrypoint import alembic_ini, main, should_run_migrations, to_asyncpg_dsn
+from app.cli.entrypoint import (
+    alembic_ini,
+    main,
+    migrations_dir,
+    should_run_migrations,
+    to_asyncpg_dsn,
+)
 
 
 def test_migrations_run_by_default() -> None:
@@ -40,3 +46,12 @@ def test_missing_command_fails_loudly(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(SystemExit, match="no command"):
         main([])
+
+
+def test_migration_scripts_are_found_inside_the_package() -> None:
+    """They ship with the code, so a checkout cannot lose them separately."""
+    scripts = migrations_dir()
+
+    assert (scripts / "env.py").is_file()
+    assert (scripts / "versions" / "0001_baseline.py").is_file()
+    assert scripts.parent.name == "app"

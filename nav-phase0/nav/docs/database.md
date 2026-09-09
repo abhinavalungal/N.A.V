@@ -33,6 +33,10 @@ need superuser rights.
     alembic downgrade -1                      roll back one
     alembic revision --autogenerate -m "..."  generate from models
 
+Run these from `apps/api`. The scripts live in `apps/api/app/migrations`, inside
+the package, so they are deployed with the code rather than as a separate
+directory that a checkout or image build can miss.
+
 The API container runs `alembic upgrade head` on start; the worker does not
 (`RUN_MIGRATIONS=0`), so two processes never race for the same lock.
 

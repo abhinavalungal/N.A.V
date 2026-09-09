@@ -28,8 +28,7 @@ WAIT_SECONDS = 2.0
 
 
 def alembic_ini() -> Path:
-    """Locate alembic.ini whether the package runs from the source tree or an
-    installed copy."""
+    """Locate alembic.ini, from the source tree or an installed copy."""
     candidates = [
         Path(__file__).resolve().parents[2] / "alembic.ini",
         Path.cwd() / "alembic.ini",
@@ -38,6 +37,18 @@ def alembic_ini() -> Path:
         if candidate.is_file():
             return candidate
     raise SystemExit("alembic.ini not found in " + ", ".join(str(c) for c in candidates))
+
+
+def migrations_dir() -> Path:
+    """Locate the migration scripts, which ship inside the package."""
+    candidates = [
+        Path(__file__).resolve().parents[1] / "migrations",
+        Path.cwd() / "app" / "migrations",
+    ]
+    for candidate in candidates:
+        if (candidate / "env.py").is_file():
+            return candidate
+    raise SystemExit("migration scripts not found in " + ", ".join(str(c) for c in candidates))
 
 
 def should_run_migrations(environ: dict[str, str] | None = None) -> bool:
@@ -81,9 +92,10 @@ def _run_migrations() -> None:
     from alembic.config import Config
 
     ini = alembic_ini()
-    logger.info("applying migrations", extra={"config": str(ini)})
+    scripts = migrations_dir()
+    logger.info("applying migrations", extra={"config": str(ini), "scripts": str(scripts)})
     config = Config(str(ini))
-    config.set_main_option("script_location", str(ini.parent / "migrations"))
+    config.set_main_option("script_location", str(scripts))
     command.upgrade(config, "head")
     logger.info("migrations applied")
 

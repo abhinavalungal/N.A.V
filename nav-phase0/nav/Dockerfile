@@ -21,14 +21,13 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY apps/api/pyproject.toml ./
+# Only two paths are copied. Migrations live inside app/, so there is no
+# separate directory that can be missing from a checkout.
+COPY apps/api/pyproject.toml apps/api/alembic.ini ./
 COPY apps/api/app ./app
 RUN pip install --no-cache-dir . \
     && apt-get purge -y build-essential \
     && apt-get autoremove -y
-
-COPY apps/api/alembic.ini ./
-COPY apps/api/migrations ./migrations
 
 # The application never runs as root.
 RUN useradd --system --create-home --uid 10001 nav \

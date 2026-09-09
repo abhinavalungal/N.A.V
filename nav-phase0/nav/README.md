@@ -34,7 +34,7 @@ there is no secret to generate and no cloud account to connect.
 ## Layout
 
     Dockerfile        builds the API and worker (root, where platforms look)
-    apps/api          FastAPI backend and Celery worker
+    apps/api          FastAPI backend and Celery worker (migrations in app/migrations)
     apps/web          Next.js console
     packages/         shared-types — one definition of the API contract
     optimization/     deterministic maritime maths (Phases 3–4)
