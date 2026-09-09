@@ -1,0 +1,118 @@
+# Render Blueprint for N.A.V.
+#
+# Render looks for ./Dockerfile at the repository root by default. This is a
+# monorepo with one Dockerfile per service, so every service below states its
+# own dockerfilePath and dockerContext.
+#
+# Deploy: Render Dashboard -> New -> Blueprint -> pick this repo.
+# You will be prompted for the two sync:false values.
+
+services:
+  # --- API ------------------------------------------------------------------
+  - type: web
+    name: nav-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - apps/api/**
+        - render.yaml
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      # Render injects PORT; the image's CMD reads it.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nav-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: nav-keyvalue
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # Set to the console's URL once it has one, e.g. https://nav-web.onrender.com
+      - key: CORS_ORIGINS
+        sync: false
+      - key: LLM_PROVIDER
+        value: mock
+      - key: WEATHER_PROVIDER
+        value: mock
+      - key: ROUTING_PROVIDER
+        value: mock
+
+  # --- Console --------------------------------------------------------------
+  - type: web
+    name: nav-web
+    runtime: docker
+    plan: free
+    region: singapore
+    # Context is the repository root: the build needs the npm workspace.
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - apps/web/**
+        - packages/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    envVars:
+      # Render cannot compose a URL from another service's host, so set this
+      # to the API's URL after the first deploy, e.g. https://nav-api.onrender.com
+      - key: API_INTERNAL_URL
+        sync: false
+
+  # --- Cache / broker -------------------------------------------------------
+  - type: keyvalue
+    name: nav-keyvalue
+    plan: free
+    region: singapore
+    maxmemoryPolicy: noeviction
+    ipAllowList: []          # private network only
+
+  # --- Celery worker --------------------------------------------------------
+  # Render has no free plan for background workers, and Phase 0 queues no work,
+  # so this stays commented out. Uncomment when Phase 4 lands (paid instance).
+  #
+  # - type: worker
+  #   name: nav-worker
+  #   runtime: docker
+  #   plan: starter
+  #   region: singapore
+  #   dockerfilePath: ./apps/api/Dockerfile
+  #   dockerContext: ./apps/api
+  #   dockerCommand: celery -A app.workers.celery_app.celery_app worker --loglevel=info --concurrency=2
+  #   envVars:
+  #     - key: RUN_MIGRATIONS      # the API container owns migrations
+  #       value: "0"
+  #     - key: DATABASE_URL
+  #       fromDatabase:
+  #         name: nav-postgres
+  #         property: connectionString
+  #     - key: REDIS_URL
+  #       fromService:
+  #         type: keyvalue
+  #         name: nav-keyvalue
+  #         property: connectionString
+  #     - key: JWT_SECRET
+  #       fromService:
+  #         type: web
+  #         name: nav-api
+  #         envVarKey: JWT_SECRET
+
+databases:
+  - name: nav-postgres
+    plan: free
+    region: singapore
+    databaseName: nav
+    postgresMajorVersion: "16"

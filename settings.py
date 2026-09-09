@@ -71,6 +71,27 @@ class Settings(BaseSettings):
     aws_region: str | None = None
     s3_bucket: str | None = None
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _normalise_database_url(cls, value: object) -> object:
+        """Accept the connection strings managed platforms hand out.
+
+        Render, Heroku, Fly and friends supply `postgres://` or
+        `postgresql://`, which SQLAlchemy would route to psycopg. The async
+        engine needs the asyncpg driver, and asyncpg takes `ssl` rather than
+        libpq's `sslmode`.
+        """
+        if not isinstance(value, str):
+            return value
+        for prefix in ("postgresql+asyncpg://", "postgresql+psycopg://"):
+            if value.startswith(prefix):
+                return value
+        for prefix in ("postgresql://", "postgres://"):
+            if value.startswith(prefix):
+                value = "postgresql+asyncpg://" + value[len(prefix) :]
+                break
+        return value.replace("?sslmode=", "?ssl=").replace("&sslmode=", "&ssl=")
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
