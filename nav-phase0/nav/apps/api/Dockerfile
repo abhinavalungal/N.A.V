@@ -22,8 +22,6 @@ RUN pip install --no-cache-dir . \
 
 COPY alembic.ini ./
 COPY migrations ./migrations
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # The application never runs as root.
 RUN useradd --system --create-home --uid 10001 nav \
@@ -31,7 +29,9 @@ RUN useradd --system --create-home --uid 10001 nav \
 USER nav
 
 EXPOSE 8000
-ENTRYPOINT ["docker-entrypoint.sh"]
+# The entry point is a module inside the package copied above, so there is no
+# loose script to commit, chmod, or keep free of CRLF line endings.
+ENTRYPOINT ["python", "-m", "app.cli.entrypoint"]
 # Shell form so a platform-injected $PORT (Render, Fly, Cloud Run) wins;
 # locally and in compose it falls back to 8000.
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

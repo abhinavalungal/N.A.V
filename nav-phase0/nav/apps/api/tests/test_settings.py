@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.config.settings import Settings
 
 
@@ -33,6 +35,25 @@ def test_no_secret_is_baked_into_the_defaults() -> None:
     assert settings.llm_api_key is None
     assert settings.weather_api_key is None
     assert settings.routing_api_key is None
+
+
+def test_settings_load_with_an_empty_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A prototype has to start with no configuration at all."""
+    for key in ("APP_ENV", "DATABASE_URL", "REDIS_URL", "CORS_ORIGINS"):
+        monkeypatch.delenv(key, raising=False)
+
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+
+    assert settings.app_env == "local"
+    assert settings.database_url.startswith("postgresql+asyncpg://")
+    assert settings.redis_url is None
+    assert settings.cors_origins == ["http://localhost:3000"]
+
+
+def test_redis_is_optional() -> None:
+    """Nothing queues work yet, so an instance without Redis is valid."""
+    assert Settings(redis_url=None).redis_configured is False
+    assert Settings(redis_url="redis://localhost:6379/0").redis_configured is True
 
 
 def test_managed_platform_url_is_routed_to_asyncpg() -> None:

@@ -2,8 +2,6 @@
 
 ## Local
 
-    cp .env.example .env
-    # set JWT_SECRET, e.g. openssl rand -hex 32
     docker compose up --build
 
 Then:
@@ -13,9 +11,9 @@ Then:
     http://localhost:8000/health liveness
     http://localhost:8000/ready  readiness
 
-`docker compose up` is enough. No API key, no external service, no network
-access to a third party is required: providers default to mock and the fonts
-are self-hosted.
+`docker compose up` is enough - there is no `.env` to create, no key to
+generate and no third party to reach: every value has a default, providers
+default to mock, and the fonts are self-hosted.
 
 ## Services
 
@@ -54,15 +52,16 @@ reports both as `DOWN` - which is the correct behaviour, not a failure.
 `./Dockerfile` at the root by default and this repo has one per service, so
 each service names its own `dockerfilePath` and `dockerContext`.
 
-Dashboard -> New -> Blueprint -> select the repo. Two values are prompted for:
+Dashboard -> New -> Blueprint -> select the repo. Three free resources come
+up: the API, the console and Postgres. One value is prompted for -
+`API_INTERNAL_URL` on `nav-web`, the API's URL. It does not exist until the
+first deploy, so deploy once, copy the URL from the dashboard, set it, and
+redeploy.
 
-- `CORS_ORIGINS` on `nav-api` - the console's URL, e.g.
-  `https://nav-web.onrender.com`
-- `API_INTERNAL_URL` on `nav-web` - the API's URL, e.g.
-  `https://nav-api.onrender.com`
-
-Neither exists until the first deploy, so deploy once, copy the two URLs from
-the dashboard, set the values, and redeploy.
+No cache is provisioned. `REDIS_URL` stays unset, readiness reports redis as
+`NOT_CONFIGURED`, and the service is ready anyway. Phase 4 is when that
+changes - and Render has no free plan for background workers, so the Celery
+service costs money from that point.
 
 Setting the same thing up by hand instead of through the Blueprint:
 
@@ -91,6 +90,19 @@ Two details the platform forces:
 `infrastructure/docker/postgres/init/00-extensions.sql` does not run against a
 managed database. Nothing in Phase 0 needs those extensions, but before Phase 9
 run `CREATE EXTENSION IF NOT EXISTS vector;` against the Render database once.
+
+## When a build fails on a COPY
+
+    failed to compute cache key: "/<file>": not found
+
+The build context is fine - Docker found the files copied before it. That line
+means the named file is not in the repository. Check with `git ls-files`, and
+`git add -f` it if a local ignore rule swallowed it.
+
+Start-up needs no shell script: `python -m app.cli.entrypoint` waits for
+Postgres, applies migrations unless `RUN_MIGRATIONS=0`, then execs the
+container command. It ships inside the package, so there is no separate file to
+commit, chmod, or keep free of CRLF line endings.
 
 ## AWS
 

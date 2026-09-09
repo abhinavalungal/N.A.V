@@ -51,8 +51,9 @@ warn_return_any = true
 disallow_untyped_defs = true
 exclude = ["migrations/"]
 
+# Neither ships type information upstream.
 [[tool.mypy.overrides]]
-module = ["celery.*"]
+module = ["celery.*", "asyncpg.*"]
 ignore_missing_imports = true
 
 # Celery's task decorator is untyped upstream; the task body itself stays typed.

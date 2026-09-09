@@ -38,14 +38,15 @@ class Settings(BaseSettings):
     database_pool_size: int = 10
     database_max_overflow: int = 20
     database_echo: bool = False
-    redis_url: str = "redis://localhost:6379/0"
+
+    # Optional. Nothing in the prototype queues work, so an instance without
+    # Redis is a valid deployment rather than a broken one. Required from
+    # Phase 4, when optimisation runs move onto the worker.
+    redis_url: str | None = None
 
     # --- Security ------------------------------------------------------
-    # Required: the process refuses to start without it rather than falling back
-    # to a guessable default.
-    jwt_secret: str = Field(min_length=8, description="HMAC signing key for access tokens")
-    jwt_algorithm: str = "HS256"
-    access_token_ttl_minutes: int = 30
+    # Authentication arrives in Phase 1. Until there is something to sign,
+    # there is no key to configure and nothing to leave insecurely defaulted.
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:3000"],
         description="Comma-separated list in the environment.",
@@ -66,10 +67,6 @@ class Settings(BaseSettings):
     agent_max_iterations: int = 8
     agent_timeout_seconds: int = 120
     nav_agent_prompt_version: str = "1.0.0"
-
-    # --- Object storage / cloud ----------------------------------------
-    aws_region: str | None = None
-    s3_bucket: str | None = None
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -103,6 +100,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def redis_configured(self) -> bool:
+        return bool(self.redis_url)
 
     @property
     def mock_providers(self) -> list[str]:
