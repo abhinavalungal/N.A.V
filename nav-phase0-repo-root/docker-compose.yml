@@ -37,7 +37,8 @@ services:
 
   api:
     build:
-      context: ./apps/api
+      context: .
+      dockerfile: Dockerfile
     environment:
       APP_ENV: ${APP_ENV:-local}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -65,7 +66,8 @@ services:
 
   worker:
     build:
-      context: ./apps/api
+      context: .
+      dockerfile: Dockerfile
     # Migrations belong to the api container only.
     environment:
       RUN_MIGRATIONS: "0"

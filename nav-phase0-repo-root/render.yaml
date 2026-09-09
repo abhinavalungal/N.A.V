@@ -1,8 +1,8 @@
 # Render Blueprint for N.A.V. (prototype).
 #
-# Render looks for ./Dockerfile at the repository root by default. This is a
-# monorepo with one Dockerfile per service, so each service states its own
-# dockerfilePath and dockerContext.
+# The API builds from ./Dockerfile at the repository root, which is what Render
+# looks for by default - so a service created by hand works without touching
+# any path setting. Only the console needs its Dockerfile named.
 #
 # Three resources, all on free plans: API, console, Postgres. No secret to
 # generate, no cache, no worker - nothing in the prototype needs them.
@@ -16,13 +16,14 @@ services:
     runtime: docker
     plan: free
     region: singapore
-    dockerfilePath: ./apps/api/Dockerfile
-    dockerContext: ./apps/api
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /health
     autoDeployTrigger: commit
     buildFilter:
       paths:
         - apps/api/**
+        - Dockerfile
         - render.yaml
     envVars:
       - key: APP_ENV

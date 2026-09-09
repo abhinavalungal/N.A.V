@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens. Dark is the operational default (an ops room is dark);
+ * light exists for daylight bridge use and desk printing. Nothing outside
+ * this file names a colour.
+ *
+ * The palette is read off a night-time navigational chart: deep water for the
+ * canvas, chart blue for interactive elements, sodium amber for anything that
+ * wants a human eye on it.
+ */
+@layer base {
+  :root {
+    --font-plex-sans: "IBM Plex Sans Variable", "IBM Plex Sans";
+    --font-plex-mono: "IBM Plex Mono";
+
+    --canvas: 205 30% 97%;
+    --surface: 0 0% 100%;
+    --raised: 205 28% 94%;
+    --hairline: 205 20% 84%;
+    --ink: 207 45% 12%;
+    --muted: 206 16% 38%;
+    --primary: 205 72% 38%;
+    --signal: 32 82% 36%;
+    --positive: 156 52% 28%;
+    --critical: 357 62% 44%;
+  }
+
+  .dark {
+    --canvas: 205 65% 7%;
+    --surface: 205 57% 11%;
+    --raised: 206 53% 15%;
+    --hairline: 207 48% 23%;
+    --ink: 207 47% 91%;
+    --muted: 206 22% 59%;
+    --primary: 205 73% 60%;
+    --signal: 36 79% 57%;
+    --positive: 156 47% 47%;
+    --critical: 357 71% 62%;
+  }
+
+  * {
+    border-color: hsl(var(--hairline));
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: hsl(var(--canvas));
+    color: hsl(var(--ink));
+    font-feature-settings: "cv05" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Numerals line up in columns wherever data is shown. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

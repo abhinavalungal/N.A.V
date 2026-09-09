@@ -1,5 +1,12 @@
 # syntax=docker/dockerfile:1
-# N.A.V. API and Celery worker share this image; only the command differs.
+#
+# N.A.V. API and Celery worker. One image, two commands.
+#
+# This sits at the repository root because that is where every platform looks
+# by default (Render, Railway, Fly, Cloud Run). Paths below are relative to the
+# repository root, so `docker build .` works with no extra configuration.
+#
+# The console has its own Dockerfile at apps/web/Dockerfile.
 FROM python:3.12-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
@@ -14,14 +21,14 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml ./
-COPY app ./app
+COPY apps/api/pyproject.toml ./
+COPY apps/api/app ./app
 RUN pip install --no-cache-dir . \
     && apt-get purge -y build-essential \
     && apt-get autoremove -y
 
-COPY alembic.ini ./
-COPY migrations ./migrations
+COPY apps/api/alembic.ini ./
+COPY apps/api/migrations ./migrations
 
 # The application never runs as root.
 RUN useradd --system --create-home --uid 10001 nav \

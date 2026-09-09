@@ -73,5 +73,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t nav-api:ci ./apps/api
+      - run: docker build -t nav-api:ci .
       - run: docker build -t nav-web:ci -f apps/web/Dockerfile .

@@ -17,16 +17,18 @@ default to mock, and the fonts are self-hosted.
 
 ## Services
 
-| Service    | Image / build      | Port | Notes                              |
-| ---------- | ------------------ | ---- | ---------------------------------- |
+| Service    | Image / build          | Port | Notes                              |
+| ---------- | ---------------------- | ---- | ---------------------------------- |
 | `postgres` | pgvector/pgvector:pg16 | 5432 | init SQL creates `pgcrypto`, `vector` |
-| `redis`    | redis:7-alpine     | 6379 | append-only persistence on         |
-| `api`      | `apps/api`         | 8000 | migrates on start, then uvicorn    |
-| `worker`   | `apps/api`         | -    | Celery, `RUN_MIGRATIONS=0`         |
-| `web`      | `apps/web`         | 3000 | Next.js standalone output          |
+| `redis`    | redis:7-alpine         | 6379 | append-only persistence on         |
+| `api`      | `./Dockerfile`         | 8000 | migrates on start, then uvicorn    |
+| `worker`   | `./Dockerfile`         | -    | Celery, `RUN_MIGRATIONS=0`         |
+| `web`      | `apps/web/Dockerfile`  | 3000 | Next.js standalone output          |
 
-`api` and `worker` share one image and differ only in command. `web` builds
-from the repository root so the npm workspace resolves.
+`api` and `worker` share one image and differ only in command. Both Dockerfiles
+build from the repository root: the API's sits at the root because that is
+where every platform looks by default, and the console's needs the root anyway
+to resolve the npm workspace.
 
 Start-up order is enforced by health checks: the API waits for Postgres and
 Redis to report healthy, the worker waits for the API, and the console waits
@@ -65,10 +67,15 @@ service costs money from that point.
 
 Setting the same thing up by hand instead of through the Blueprint:
 
-| Service | Dockerfile path          | Docker context |
-| ------- | ------------------------ | -------------- |
-| api     | `apps/api/Dockerfile`    | `apps/api`     |
-| web     | `apps/web/Dockerfile`    | `.` (repo root, for the npm workspace) |
+| Service | Dockerfile path       | Docker context |
+| ------- | --------------------- | -------------- |
+| api     | `./Dockerfile`        | `.` - both are Render's defaults, so change nothing |
+| web     | `apps/web/Dockerfile` | `.` |
+
+A Blueprint only drives services created through **New -> Blueprint**. A
+service created through **New -> Web Service** ignores `render.yaml` entirely
+and keeps whatever its dashboard settings say - which is why the API's
+Dockerfile is at the root: that path needs no dashboard setting at all.
 
 What the free tier does and does not give you, as of September 2026: web
 services sleep after 15 minutes idle and take around a minute to wake; the
@@ -98,6 +105,13 @@ run `CREATE EXTENSION IF NOT EXISTS vector;` against the Render database once.
 The build context is fine - Docker found the files copied before it. That line
 means the named file is not in the repository. Check with `git ls-files`, and
 `git add -f` it if a local ignore rule swallowed it.
+
+A different message - `failed to read dockerfile: open Dockerfile: no such
+file or directory` - means the platform looked for `./Dockerfile` and the
+repository root does not have one. Either the project sits inside a wrapper
+folder in the repo (check `git ls-files | head`; the paths should start with
+`apps/`, not `nav/apps/`), or `render.yaml` is not at the root, or the service
+was not created from the Blueprint.
 
 Start-up needs no shell script: `python -m app.cli.entrypoint` waits for
 Postgres, applies migrations unless `RUN_MIGRATIONS=0`, then execs the
