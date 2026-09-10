@@ -45,9 +45,17 @@ def test_settings_load_with_an_empty_environment(monkeypatch: pytest.MonkeyPatch
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
 
     assert settings.app_env == "local"
-    assert settings.database_url.startswith("postgresql+asyncpg://")
+    assert settings.database_url is None
     assert settings.redis_url is None
     assert settings.cors_origins == ["http://localhost:3000"]
+
+
+def test_datastores_are_optional() -> None:
+    """Phase 0 has no tables and queues no work, so neither is required."""
+    bare = Settings(database_url=None, redis_url=None)
+
+    assert bare.database_configured is False
+    assert bare.redis_configured is False
 
 
 def test_redis_is_optional() -> None:

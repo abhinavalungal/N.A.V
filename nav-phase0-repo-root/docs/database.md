@@ -42,6 +42,10 @@ The API container runs `alembic upgrade head` on start; the worker does not
 
 ## Current state
 
+No database is required to run Phase 0, and the deployed prototype has none:
+there are no tables, so there is nothing to store. `DATABASE_URL` becomes
+required in Phase 1, when users and companies arrive.
+
 One revision, `0001_baseline`, which creates no tables. It exists so every
 later migration has a common ancestor. Domain tables arrive in Phases 1 and 2
 in the order set out in `data-model.md`.

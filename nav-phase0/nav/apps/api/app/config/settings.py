@@ -34,7 +34,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # --- Datastores ----------------------------------------------------
-    database_url: str = "postgresql+asyncpg://nav:nav@localhost:5432/nav"
+    # Both optional. Phase 0 has no tables and queues no work, so an instance
+    # with neither is a valid deployment rather than a broken one. Postgres
+    # becomes required in Phase 1, Redis in Phase 4.
+    database_url: str | None = None
     database_pool_size: int = 10
     database_max_overflow: int = 20
     database_echo: bool = False
@@ -100,6 +103,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def database_configured(self) -> bool:
+        return bool(self.database_url)
 
     @property
     def redis_configured(self) -> bool:

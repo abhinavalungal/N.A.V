@@ -18,12 +18,26 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import get_settings
+from app.core.errors import DependencyUnavailableError
+
+
+def database_configured() -> bool:
+    """Whether this instance has a database to talk to at all."""
+    return get_settings().database_configured
 
 
 @lru_cache
 def get_engine() -> AsyncEngine:
-    """Return the process-wide async engine."""
+    """Return the process-wide async engine.
+
+    Raises rather than inventing a default: a deployment without DATABASE_URL
+    should say so, not quietly dial localhost.
+    """
     settings = get_settings()
+    if not settings.database_url:
+        raise DependencyUnavailableError(
+            "DATABASE_URL is not configured; this instance has no database"
+        )
     return create_async_engine(
         settings.database_url,
         echo=settings.database_echo,
@@ -58,5 +72,6 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def dispose_engine() -> None:
     """Close all pooled connections (called on application shutdown)."""
-    engine = get_engine()
-    await engine.dispose()
+    if not database_configured():
+        return
+    await get_engine().dispose()

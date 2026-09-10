@@ -105,3 +105,14 @@ async def test_redis_probe_is_skipped_when_unset() -> None:
     redis = next(c for c in report.components if c.name == "redis")
     assert redis.status is ComponentStatus.NOT_CONFIGURED
     assert redis.latency_ms is None
+
+
+async def test_instance_with_no_datastores_is_ready() -> None:
+    """A Phase 0 deployment can run with neither, and says so on both rows."""
+    settings = Settings(database_url=None, redis_url=None)
+
+    report = await HealthService(settings).readiness()
+
+    assert report.ready is True
+    assert {c.status for c in report.components} == {ComponentStatus.NOT_CONFIGURED}
+    assert all(c.detail for c in report.components)

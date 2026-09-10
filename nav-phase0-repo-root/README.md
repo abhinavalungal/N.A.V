@@ -28,6 +28,11 @@ and every provider defaults to mock — and mocked data is labelled as mock
 wherever it is shown. Copy `.env.example` to `.env` only when you want to
 change something.
 
+Compose brings up Postgres and Redis, but the API does not require either.
+With `DATABASE_URL` and `REDIS_URL` unset it starts, serves, and reports both
+as `NOT_CONFIGURED` — which is how the deployed prototype runs. Postgres
+becomes required in Phase 1, Redis in Phase 4.
+
 Authentication (Phase 1) and object storage (Phase 9) are not wired up, so
 there is no secret to generate and no cloud account to connect.
 

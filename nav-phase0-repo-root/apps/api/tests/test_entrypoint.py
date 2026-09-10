@@ -10,6 +10,8 @@ import pytest
 
 from app.cli.entrypoint import (
     alembic_ini,
+    database_target,
+    looks_unconfigured,
     main,
     migrations_dir,
     should_run_migrations,
@@ -55,3 +57,29 @@ def test_migration_scripts_are_found_inside_the_package() -> None:
     assert (scripts / "env.py").is_file()
     assert (scripts / "versions" / "0001_baseline.py").is_file()
     assert scripts.parent.name == "app"
+
+
+def test_target_is_loggable_without_credentials() -> None:
+    """The log line names the host without leaking the password."""
+    target = database_target("postgresql+asyncpg://nav:s3cret@dpg-abc.render.com:5432/navdb")
+
+    assert target == "dpg-abc.render.com:5432/navdb"
+    assert "s3cret" not in target
+
+
+def test_target_defaults_the_port() -> None:
+    assert database_target("postgresql://nav:pw@db/nav") == "db:5432/nav"
+
+
+def test_deployed_service_pointing_at_localhost_is_flagged() -> None:
+    """Almost always means DATABASE_URL was never set on the service."""
+    url = "postgresql+asyncpg://nav:nav@localhost:5432/nav"
+
+    assert looks_unconfigured(url, "production") is True
+    assert looks_unconfigured(url, "local") is False
+
+
+def test_real_host_is_not_flagged() -> None:
+    url = "postgresql+asyncpg://nav:pw@dpg-abc.render.com/nav"
+
+    assert looks_unconfigured(url, "production") is False

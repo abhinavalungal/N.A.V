@@ -44,9 +44,9 @@ for the API.
     npm install
     npm run dev --workspace=@nav/web
 
-Postgres and Redis still need to be reachable at the URLs in `.env`. With
-neither running, the API starts and `/health` answers 200 while `/ready`
-reports both as `DOWN` - which is the correct behaviour, not a failure.
+Neither datastore is required. Unset, they are reported `NOT_CONFIGURED` and
+the service is ready. Set but unreachable, they are reported `DOWN` and it is
+not - a URL that points at nothing is a fault, an absent URL is a choice.
 
 ## Render
 
@@ -60,10 +60,13 @@ up: the API, the console and Postgres. One value is prompted for -
 first deploy, so deploy once, copy the URL from the dashboard, set it, and
 redeploy.
 
-No cache is provisioned. `REDIS_URL` stays unset, readiness reports redis as
-`NOT_CONFIGURED`, and the service is ready anyway. Phase 4 is when that
-changes - and Render has no free plan for background workers, so the Celery
-service costs money from that point.
+No database and no cache are provisioned. `DATABASE_URL` and `REDIS_URL` stay
+unset, readiness reports both as `NOT_CONFIGURED`, the entrypoint skips
+migrations because there is nothing to migrate, and the service is ready
+anyway. Phase 1 needs Postgres and Phase 4 needs Redis; `render.yaml` carries
+both, commented, with the wiring ready to uncomment. Note that Render has no
+free plan for background workers, so the Celery service costs money from
+Phase 4.
 
 Setting the same thing up by hand instead of through the Blueprint:
 
@@ -117,6 +120,24 @@ Start-up needs no shell script: `python -m app.cli.entrypoint` waits for
 Postgres, applies migrations unless `RUN_MIGRATIONS=0`, then execs the
 container command. It ships inside the package, so there is no separate file to
 commit, chmod, or keep free of CRLF line endings.
+
+## When the API starts but cannot reach Postgres
+
+    database not ready  attempt 1  target dpg-abc:5432/nav  error ...
+
+The log names the host it is dialling and the driver's own message. Read that
+message rather than the error class:
+
+- `Name or service not known` - the hostname does not resolve. On Render this
+  usually means the database is in a different region from the service; the
+  private network does not cross regions.
+- `Connection refused` - the host resolves but nothing is listening. Check the
+  port, and that the database has finished provisioning.
+- `target localhost:5432` on a deployed service - `DATABASE_URL` is not set,
+  so the default is being used. The log warns about this explicitly.
+
+The container exits after 30 attempts over 60 seconds rather than sitting in a
+loop pretending to start.
 
 ## AWS
 

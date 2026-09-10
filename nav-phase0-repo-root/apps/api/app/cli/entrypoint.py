@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from app.config import get_settings
 from app.core.logging import configure_logging
@@ -62,27 +63,48 @@ def to_asyncpg_dsn(database_url: str) -> str:
     return database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
 
 
-async def _wait_for_database(dsn: str) -> None:
+def database_target(database_url: str) -> str:
+    """host:port/database, credentials removed, safe to put in a log line."""
+    parsed = urlsplit(to_asyncpg_dsn(database_url))
+    return f"{parsed.hostname or '?'}:{parsed.port or 5432}/{parsed.path.lstrip('/') or '?'}"
+
+
+def looks_unconfigured(database_url: str, app_env: str) -> bool:
+    """A non-local deployment pointing at localhost means DATABASE_URL is unset."""
+    host = urlsplit(to_asyncpg_dsn(database_url)).hostname
+    return app_env != "local" and host in {"localhost", "127.0.0.1", "::1"}
+
+
+async def _wait_for_database(dsn: str, target: str) -> None:
     """Block until Postgres accepts a connection, or give up loudly."""
     import asyncpg
 
+    last_error = "unknown"
     for attempt in range(1, WAIT_ATTEMPTS + 1):
         try:
             connection = await asyncpg.connect(dsn)
         except Exception as exc:  # noqa: BLE001 - any failure means "not yet"
+            # The message matters more than the class: "Name or service not
+            # known" and "Connection refused" are different problems.
+            last_error = str(exc) or type(exc).__name__
             logger.info(
                 "database not ready",
-                extra={"attempt": attempt, "error_type": type(exc).__name__},
+                extra={
+                    "attempt": attempt,
+                    "target": target,
+                    "error_type": type(exc).__name__,
+                    "error": last_error[:200],
+                },
             )
             await asyncio.sleep(WAIT_SECONDS)
         else:
             await connection.close()
-            logger.info("database ready", extra={"attempt": attempt})
+            logger.info("database ready", extra={"attempt": attempt, "target": target})
             return
 
     raise SystemExit(
-        f"database did not accept a connection after "
-        f"{WAIT_ATTEMPTS} attempts over {int(WAIT_ATTEMPTS * WAIT_SECONDS)}s"
+        f"could not connect to {target} after {WAIT_ATTEMPTS} attempts over "
+        f"{int(WAIT_ATTEMPTS * WAIT_SECONDS)}s. Last error: {last_error[:200]}"
     )
 
 
@@ -106,8 +128,21 @@ def main(argv: list[str] | None = None) -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    if should_run_migrations():
-        asyncio.run(_wait_for_database(to_asyncpg_dsn(settings.database_url)))
+    if not settings.database_url:
+        logger.info(
+            "no database configured; skipping migrations",
+            extra={"hint": "set DATABASE_URL when Phase 1 adds tables"},
+        )
+    elif should_run_migrations():
+        target = database_target(settings.database_url)
+        if looks_unconfigured(settings.database_url, settings.app_env):
+            logger.warning(
+                "DATABASE_URL looks unset: a deployed service is pointing at "
+                "localhost, where no database is running",
+                extra={"target": target, "environment": settings.app_env},
+            )
+        logger.info("waiting for database", extra={"target": target})
+        asyncio.run(_wait_for_database(to_asyncpg_dsn(settings.database_url), target))
         _run_migrations()
     else:
         logger.info("skipping migrations", extra={"reason": "RUN_MIGRATIONS is off"})

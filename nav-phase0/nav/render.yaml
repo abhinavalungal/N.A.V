@@ -4,8 +4,10 @@
 # looks for by default - so a service created by hand works without touching
 # any path setting. Only the console needs its Dockerfile named.
 #
-# Three resources, all on free plans: API, console, Postgres. No secret to
-# generate, no cache, no worker - nothing in the prototype needs them.
+# Two free web services and nothing else: API and console. Phase 0 has no
+# tables and queues no work, so there is no database, cache, worker or secret
+# to provision. Readiness reports both datastores as NOT_CONFIGURED and the
+# service is ready anyway.
 #
 # Deploy: Render Dashboard -> New -> Blueprint -> pick this repo.
 
@@ -31,13 +33,9 @@ services:
       - key: LOG_LEVEL
         value: INFO
       # Render injects PORT; the image's CMD reads it.
-      # Supplied as postgresql://; Settings rewrites it for asyncpg.
-      - key: DATABASE_URL
-        fromDatabase:
-          name: nav-postgres
-          property: connectionString
-      # REDIS_URL is deliberately unset: readiness reports redis as
-      # NOT_CONFIGURED, which does not block the service.
+      # DATABASE_URL and REDIS_URL are deliberately unset. Readiness reports
+      # both as NOT_CONFIGURED, which does not block the service, and the
+      # entrypoint skips migrations because there is nothing to migrate.
       - key: LLM_PROVIDER
         value: mock
       - key: WEATHER_PROVIDER
@@ -71,8 +69,8 @@ services:
 
   # --- Cache / broker -------------------------------------------------------
   # Not needed until Phase 4 queues optimisation runs. Uncomment then, and add
-  # REDIS_URL to nav-api. Note that Render has no free plan for background
-  # workers, so the Celery service is a paid instance when it arrives.
+  # REDIS_URL to nav-api. Render has no free plan for background workers, so
+  # the Celery service is a paid instance when it arrives.
   #
   # - type: keyvalue
   #   name: nav-keyvalue
@@ -81,9 +79,15 @@ services:
   #   maxmemoryPolicy: noeviction
   #   ipAllowList: []          # private network only
 
-databases:
-  - name: nav-postgres
-    plan: free
-    region: singapore
-    databaseName: nav
-    postgresMajorVersion: "16"
+# --- Database ---------------------------------------------------------------
+# Phase 1 adds users, companies and RBAC, and needs this. Uncomment it then,
+# add DATABASE_URL to nav-api with fromDatabase, and keep the database in the
+# same region as the service - the private network does not cross regions.
+# Render's free Postgres is deleted 30 days after creation.
+#
+# databases:
+#   - name: nav-postgres
+#     plan: free
+#     region: singapore
+#     databaseName: nav
+#     postgresMajorVersion: "16"

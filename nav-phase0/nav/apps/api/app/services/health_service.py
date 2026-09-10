@@ -76,6 +76,13 @@ class HealthService:
         )
 
     async def _check_database(self) -> ComponentHealth:
+        if not self._settings.database_url:
+            return ComponentHealth(
+                name="postgres",
+                status=ComponentStatus.NOT_CONFIGURED,
+                detail="DATABASE_URL is unset; required from Phase 1",
+            )
+
         started = time.perf_counter()
         try:
             async with asyncio.timeout(PROBE_TIMEOUT_SECONDS):
