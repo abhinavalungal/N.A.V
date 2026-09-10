@@ -1,0 +1,26 @@
+# /etc/caddy/Caddyfile
+# Caddy gets the TLS certificate itself. Replace the hostname and the
+# basicauth hash (generate one with: caddy hash-password).
+#
+# One origin serves both the app and the API, so CORS never comes into it:
+# set NEXT_PUBLIC_API_URL=https://nav.example.com/api/v1 at build time.
+
+nav.example.com {
+	encode zstd gzip
+
+	basicauth {
+		ops $2a$14$REPLACE_WITH_YOUR_OWN_CADDY_HASH_PASSWORD_OUTPUT
+	}
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	handle /health {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

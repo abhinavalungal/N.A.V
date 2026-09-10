@@ -1,0 +1,22 @@
+# /etc/systemd/system/nav-web.service
+# Run "npm ci && npm run build" once as the nav user before enabling this.
+
+[Unit]
+Description=N.A.V. web (Next.js)
+After=network-online.target nav-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nav
+WorkingDirectory=/opt/nav/frontend
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
