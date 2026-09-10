@@ -1,0 +1,23 @@
+# /etc/systemd/system/nav-api.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now nav-api
+
+[Unit]
+Description=N.A.V. API (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nav
+WorkingDirectory=/opt/nav/backend
+EnvironmentFile=/opt/nav/backend/.env
+ExecStart=/opt/nav/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+# The SQLite file and WAL live here.
+ReadWritePaths=/opt/nav/data
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

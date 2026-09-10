@@ -1,5 +1,0 @@
-# Normalise line endings so a clone on Windows produces containers that run.
-* text=auto eol=lf
-*.png binary
-*.jpg binary
-*.woff2 binary
