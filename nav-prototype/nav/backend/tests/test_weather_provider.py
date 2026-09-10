@@ -113,9 +113,13 @@ def provider():
 
 
 def _soon(hours: float = 3.0) -> datetime:
-    return (datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0) + timedelta(hours=hours)).replace(
-        minute=0, second=0
-    )
+    """A fixed hour tomorrow, inside the forecast window.
+
+    Anchored at 06:00 so the hour-matching tests can add a few hours without
+    crossing midnight, which would move the stub's date range.
+    """
+    tomorrow = (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1)).date()
+    return datetime(tomorrow.year, tomorrow.month, tomorrow.day, 6) + timedelta(hours=hours - 3.0)
 
 
 def test_parses_a_documented_payload(provider):

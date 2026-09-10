@@ -9,14 +9,13 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { Meta } from "@/types";
 
+// Four tabs, not six. Vessels live under Fleet, and route comparison happens
+// on the voyage itself, so neither needed a tab of its own. Each tab owns the
+// detail routes beneath it: the detail pages are /vessel?id= and /voyage?id=.
 const LINKS = [
   { href: "/", label: "Dashboard", section: ["/"] },
-  { href: "/fleet", label: "Fleet", section: ["/fleet"] },
-  // The detail pages are /vessel?id= and /voyage?id=, so each tab owns both
-  // its list route and its singular detail route.
-  { href: "/vessels", label: "Vessels", section: ["/vessels", "/vessel"] },
-  { href: "/voyages", label: "Voyages", section: ["/voyages", "/voyage"] },
-  { href: "/optimization", label: "Optimization", section: ["/optimization"] },
+  { href: "/voyages", label: "Voyages", section: ["/voyages", "/voyage", "/optimization"] },
+  { href: "/fleet", label: "Fleet", section: ["/fleet", "/vessels", "/vessel"] },
   { href: "/analytics", label: "Analytics", section: ["/analytics"] },
 ];
 

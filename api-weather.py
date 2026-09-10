@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from ..clock import utc_now
 from ..database import get_db
 from ..models import Vessel, Voyage, WeatherRecord
-from ..schemas import RouteWeatherOut, WeatherOut
-from ..services import weather as weather_service
+from ..schemas import RouteWeatherOut, WeatherOut, WindFieldOut, WindFieldPointOut
+from ..services import voyage_plan, weather as weather_service
 from ..services.optimizer import voyage_endpoints
 from ..services.routing import generate_routes
 
@@ -75,3 +75,42 @@ def voyage_track_weather(voyage_id: int, db: Session = Depends(get_db)):
     )
     aggregate = weather_service.aggregate(samples)
     return RouteWeatherOut(samples=[_out(s) for s in samples], **aggregate)
+
+
+@router.get("/weather/voyage/{voyage_id}/field", response_model=WindFieldOut)
+def voyage_wind_field(
+    voyage_id: int,
+    at: datetime | None = None,
+    db: Session = Depends(get_db),
+):
+    """A coarse wind grid around the track, for the chart overlay.
+
+    `at` moves the grid through time, which is what the timeline scrubber on
+    the voyage page uses. Beyond the forecast horizon the points come back
+    from the mock provider and say so.
+    """
+    voyage = db.get(Voyage, voyage_id)
+    if not voyage:
+        raise HTTPException(status_code=404, detail=f"Voyage {voyage_id} not found")
+    moment = (at or utc_now()).replace(microsecond=0, tzinfo=None)
+    origin, destination, _ = voyage_endpoints(voyage)
+    route = generate_routes(origin, destination, voyage.vessel.design_speed_kn, moment)[0]
+    grid = voyage_plan.wind_field(route.waypoints, moment)
+    live = sum(1 for s in grid if s.source == "OPEN_METEO")
+    sources = {s.source for s in grid}
+    return WindFieldOut(
+        valid_at=moment,
+        points=[
+            WindFieldPointOut(
+                latitude=s.latitude,
+                longitude=s.longitude,
+                wind_speed_kn=s.wind_speed_kn,
+                wind_direction_deg=s.wind_direction_deg,
+                wave_height_m=s.wave_height_m,
+                source=s.source,
+            )
+            for s in grid
+        ],
+        source="MIXED" if len(sources) > 1 else (sources.pop() if sources else "NONE"),
+        live_fraction=round(live / len(grid), 3) if grid else 0.0,
+    )

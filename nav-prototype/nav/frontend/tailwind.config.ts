@@ -28,8 +28,8 @@ const config: Config = {
         coral: token("coral"),
       },
       fontFamily: {
-        sans: ["IBM Plex Sans", "system-ui", "sans-serif"],
-        mono: ["IBM Plex Mono", "ui-monospace", "monospace"],
+        sans: ["Geist Sans", "system-ui", "sans-serif"],
+        mono: ["Geist Mono", "ui-monospace", "monospace"],
       },
       borderRadius: {
         DEFAULT: "2px",

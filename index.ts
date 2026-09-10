@@ -301,3 +301,65 @@ export interface FuelPrice {
   quoted_at: string;
   source: string;
 }
+
+export interface Leg {
+  index: number;
+  start: number[];
+  end: number[];
+  depart_utc: string;
+  arrive_utc: string;
+  distance_nm: number;
+  speed_kn: number;
+  heading_deg: number;
+  fuel_mt: number;
+  wind_speed_kn: number;
+  wind_direction_deg: number;
+  wave_height_m: number;
+  wave_direction_deg: number;
+  current_speed_kn: number;
+  weather_source: string;
+  exposure: number;
+  risk_index: number;
+}
+
+export interface Hazard {
+  severity: "WATCH" | "DANGEROUS";
+  reason: string;
+  start_utc: string;
+  end_utc: string;
+  max_wind_kn: number;
+  max_wave_m: number;
+  geometry: number[][];
+  source: string;
+}
+
+export interface VoyagePlan {
+  voyage_id: number;
+  reference: string;
+  vessel_name: string;
+  departure_utc: string;
+  arrival_utc: string;
+  speed_kn: number;
+  distance_nm: number;
+  total_fuel_mt: number;
+  legs: Leg[];
+  hazards: Hazard[];
+  weather_source: string;
+  live_fraction: number;
+}
+
+export interface WindFieldPoint {
+  latitude: number;
+  longitude: number;
+  wind_speed_kn: number;
+  wind_direction_deg: number;
+  wave_height_m: number;
+  source: string;
+}
+
+export interface WindField {
+  valid_at: string;
+  points: WindFieldPoint[];
+  source: string;
+  live_fraction: number;
+}

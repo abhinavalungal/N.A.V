@@ -15,6 +15,13 @@ export interface MapRoute {
   opacity?: number;
 }
 
+export interface WindArrow {
+  lat: number;
+  lon: number;
+  speedKn: number;
+  fromDeg: number;
+}
+
 export interface MapMarker {
   id: string;
   lon: number;
@@ -30,6 +37,8 @@ export interface MapMarker {
 interface Props {
   routes?: MapRoute[];
   markers?: MapMarker[];
+  /** Coarse wind grid drawn as arrows under the routes. */
+  wind?: WindArrow[];
   fitTo?: number[][];
   className?: string;
   zoom?: number;
@@ -61,6 +70,42 @@ function graticule(): GeoJSON.FeatureCollection {
     });
   }
   return { type: "FeatureCollection", features };
+}
+
+/** A wind arrow as a polyline: shaft plus two barbs, pointing downwind.
+ *
+ *  Meteorological direction is the direction wind comes FROM, so the arrow is
+ *  drawn towards from + 180. Length grows a little with speed so a glance
+ *  reads strength as well as direction.
+ */
+function arrowFeature(arrow: WindArrow): GeoJSON.Feature {
+  const to = ((arrow.fromDeg + 180) % 360) * (Math.PI / 180);
+  const scale = Math.cos((arrow.lat * Math.PI) / 180) || 0.2;
+  const length = 0.9 + Math.min(2.1, arrow.speedKn / 18);
+
+  const head: [number, number] = [
+    arrow.lon + (Math.sin(to) * length) / scale,
+    arrow.lat + Math.cos(to) * length,
+  ];
+  const tail: [number, number] = [arrow.lon, arrow.lat];
+
+  const barb = (offsetDeg: number): [number, number] => {
+    const a = to + Math.PI + (offsetDeg * Math.PI) / 180;
+    const l = length * 0.36;
+    return [head[0] + (Math.sin(a) * l) / scale, head[1] + Math.cos(a) * l];
+  };
+
+  return {
+    type: "Feature",
+    properties: { speed: arrow.speedKn },
+    geometry: {
+      type: "MultiLineString",
+      coordinates: [
+        [tail, head],
+        [barb(-28), head, barb(28)],
+      ],
+    },
+  };
 }
 
 /** Keep longitudes continuous so Pacific routes don't wrap across the map. */
@@ -139,6 +184,7 @@ function markerElement(marker: MapMarker): HTMLElement {
 export default function MapView({
   routes = [],
   markers = [],
+  wind,
   fitTo,
   className,
   zoom = 1.4,
@@ -189,6 +235,39 @@ export default function MapView({
     drawn.current = [];
     pins.current.forEach((m) => m.remove());
     pins.current = [];
+
+    if (wind && wind.length > 0) {
+      const id = "wind-field";
+      instance.addSource(id, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: wind.map(arrowFeature) } as never,
+      });
+      instance.addLayer({
+        id,
+        type: "line",
+        source: id,
+        layout: { "line-cap": "round" },
+        paint: {
+          "line-width": 1,
+          "line-opacity": 0.75,
+          // Calm to gale, in the palette's own colours.
+          "line-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "speed"],
+            0,
+            token("sea", 0.45),
+            18,
+            token("sea"),
+            30,
+            token("brass"),
+            40,
+            token("coral"),
+          ],
+        },
+      });
+      drawn.current.push(id);
+    }
 
     routes.forEach((route) => {
       if (route.coordinates.length < 2) return;
@@ -246,7 +325,7 @@ export default function MapView({
   useEffect(() => {
     draw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(routes), JSON.stringify(markers), JSON.stringify(fitTo)]);
+  }, [JSON.stringify(routes), JSON.stringify(markers), JSON.stringify(wind), JSON.stringify(fitTo)]);
 
   // The basemap colours are baked into the style, so a theme change means a
   // new style. Routes and markers are redrawn once it has loaded.

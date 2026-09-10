@@ -174,6 +174,68 @@ class RouteWeatherOut(BaseModel):
     live_fraction: float = 0.0
 
 
+class LegOut(BaseModel):
+    index: int
+    start: list[float]
+    end: list[float]
+    depart_utc: datetime
+    arrive_utc: datetime
+    distance_nm: float
+    speed_kn: float
+    heading_deg: float
+    fuel_mt: float
+    wind_speed_kn: float
+    wind_direction_deg: float
+    wave_height_m: float
+    wave_direction_deg: float
+    current_speed_kn: float
+    weather_source: str
+    exposure: float
+    risk_index: float
+
+
+class HazardOut(BaseModel):
+    severity: str
+    reason: str
+    start_utc: datetime
+    end_utc: datetime
+    max_wind_kn: float
+    max_wave_m: float
+    geometry: list[list[float]]
+    source: str
+
+
+class VoyagePlanOut(BaseModel):
+    voyage_id: int
+    reference: str
+    vessel_name: str
+    departure_utc: datetime
+    arrival_utc: datetime
+    speed_kn: float
+    distance_nm: float
+    total_fuel_mt: float
+    legs: list[LegOut]
+    hazards: list[HazardOut]
+    weather_source: str
+    live_fraction: float
+
+
+class WindFieldPointOut(BaseModel):
+    latitude: float
+    longitude: float
+    wind_speed_kn: float
+    wind_direction_deg: float
+    wave_height_m: float
+    source: str
+
+
+class WindFieldOut(BaseModel):
+    valid_at: datetime
+    points: list[WindFieldPointOut]
+    source: str
+    live_fraction: float
+
+
 # --- Routing ---------------------------------------------------------------
 
 
