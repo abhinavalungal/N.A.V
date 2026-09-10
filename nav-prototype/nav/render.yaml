@@ -1,0 +1,55 @@
+# Render blueprint for N.A.V. — one service that serves both the API and the
+# app, because the frontend is a static export.
+#
+# Step-by-step instructions with screenshots-in-words: see RENDER.md.
+#
+#   1. bash deploy/prepare.sh    (builds frontend/out and commits it)
+#   2. git push
+#   3. Render -> New -> Blueprint -> pick the repo -> Apply
+#
+# Step 1 exists because Render's Python runtime has no Node.js, so the export
+# has to be built somewhere that does — your machine or CI. It is static files
+# only; nothing is compiled on the server.
+#
+# Prefer to have Render build the frontend too? Use the Dockerfile at the
+# project root instead: set `runtime: docker` and `dockerfilePath: ./Dockerfile`
+# below, and delete rootDir, buildCommand and startCommand. See RENDER.md.
+#
+# The free instance has no persistent disk, so SQLite lives in /tmp and is
+# wiped on every restart. The start command re-seeds it, and the seed is
+# deterministic, so the fleet always comes back identical. Approvals made
+# during a session do NOT survive a restart. If they must, point DATABASE_URL
+# at Postgres (Neon, Supabase or Render Postgres) and add
+# `pip install "psycopg[binary]"` to the build command.
+
+services:
+  - type: web
+    name: nav
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Seeding runs at start-up (about 0.6 s) because free instances get no
+    # pre-deploy step. --if-empty makes it a no-op once data exists.
+    startCommand: python seed.py --if-empty && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DATABASE_URL
+        value: sqlite:////tmp/nav.db
+      # auto = live Open-Meteo forecast, falling back to the deterministic
+      # mock provider whenever a point is unreachable or beyond the forecast
+      # horizon. Note the free Open-Meteo tier is licensed for non-commercial
+      # use (10,000 calls/day); set this to `mock` for a commercial demo, or
+      # buy a customer plan.
+      - key: WEATHER_PROVIDER
+        value: auto
+      # Only needed if you host the frontend somewhere else instead.
+      - key: CORS_ORIGINS
+        value: http://localhost:3000
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
